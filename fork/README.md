@@ -129,3 +129,50 @@ git diff > fork/patches/0001-hop-upstream-edits.patch
   the exchange providers listed in `hop_exchange_service.dart`.
 - A hop in relay mode may only fire after the previous hop is `completed` —
   that gate lives in `HopEngine.runOnce`.
+
+## Automated upstream sync (GitHub Actions)
+
+`.github/workflows/sync-upstream.yml` runs on this fork:
+
+- **daily** at 03:17 UTC
+- **manually** via *Actions → Sync upstream → Run workflow*
+
+Two jobs:
+
+| Job | Does |
+|---|---|
+| `mirror` | fast-forwards this fork's `dev` branch to `cake-tech/cake_wallet:dev`, so `git diff dev` always equals our local delta |
+| `sync` | merges `upstream/dev` into `local/hop`, verifies our wiring survived, refreshes `fork/patches`, pushes |
+
+**It never pushes a broken tree.** If the merge conflicts, the job aborts the
+merge, opens/updates a `upstream-sync` issue listing the conflicting files, and
+fails the run.
+
+### Manual run
+
+```bash
+gh workflow run sync-upstream.yml --repo youugiuhiuh/cake_wallet \
+  -f upstream_ref=dev -f feature_branch=local/hop
+
+# rehearse without pushing:
+gh workflow run sync-upstream.yml --repo youugiuhiuh/cake_wallet -f dry_run=true
+```
+
+### What the sync verifies after every merge
+
+`hopPage` in `routes.dart`, `Routes.hopPage` in `router.dart`, `HopEngine` in
+`di.dart` / `main.dart` / `background_sync.dart`, the settings row, and
+`_ensureLocalTables` in `sqlite.dart` — plus the eight new feature files. If any
+marker is missing the job fails before pushing, so a bad merge can never quietly
+drop the feature.
+
+### Fork default branch
+
+The fork's default branch is **`local/hop`**, not `dev`. `schedule`-triggered
+workflows only run from the default branch, so this is what makes the daily sync
+fire. `dev` stays a pristine mirror of upstream.
+
+### First run result
+
+Verified end-to-end against a 56-commit upstream jump: **clean auto-merge, zero
+conflicts**, all wiring markers intact, patch regenerated.
