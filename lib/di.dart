@@ -23,6 +23,10 @@ import 'package:cake_wallet/cake_pay/src/services/cake_pay_service.dart';
 import 'package:cake_wallet/core/auth_service.dart';
 import 'package:cake_wallet/core/backup_service_v3.dart';
 import 'package:cake_wallet/core/key_service.dart';
+import 'package:cake_wallet/core/hop/hop_engine.dart';
+import 'package:cake_wallet/core/hop/hop_executor_impl.dart';
+import 'package:cake_wallet/core/hop/hop_exchange_service.dart';
+import 'package:cake_wallet/view_model/hop/hop_view_model.dart';
 import 'package:cake_wallet/core/new_wallet_arguments.dart';
 import 'package:cake_wallet/core/new_wallet_type_arguments.dart';
 import 'package:cake_wallet/core/node_switching_service.dart';
@@ -1068,6 +1072,26 @@ Future<void> setup({
 
   getIt.registerFactory(() => OtherSettingsViewModel(
       getIt.get<SettingsStore>(), getIt.get<AppStore>().wallet!, getIt.get<SendViewModel>()));
+
+  getIt.registerLazySingleton<HopEngine>(() => HopEngine(
+        HopExecutorImpl(
+          appStore: getIt.get<AppStore>(),
+          settingsStore: getIt.get<SettingsStore>(),
+          fiatConversionStore: getIt.get<FiatConversionStore>(),
+          exchangeService: getIt.get<HopExchangeService>(),
+          loadWallet: (type, name) => getIt
+              .get<WalletLoadingService>()
+              .load(type, name),
+        ),
+      ));
+
+  getIt.registerLazySingleton<HopExchangeService>(
+      () => HopExchangeService(getIt.get<SettingsStore>()));
+
+  getIt.registerFactory<HopViewModel>(() => HopViewModel(
+        engine: getIt.get<HopEngine>(),
+        loadWallet: (type, name) => getIt.get<WalletLoadingService>().load(type, name),
+      ));
 
   getIt.registerFactory(
       () => SecuritySettingsViewModel(getIt.get<SettingsStore>(), getIt.get<AuthService>()));

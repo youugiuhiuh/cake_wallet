@@ -127,6 +127,8 @@ import 'package:cake_wallet/src/screens/support_chat/support_chat_page.dart';
 import 'package:cake_wallet/src/screens/support_other_links/support_other_links_page.dart';
 import 'package:cake_wallet/src/screens/trade_details/trade_details_page.dart';
 import 'package:cake_wallet/src/screens/transaction_details/rbf_details_page.dart';
+import 'package:cake_wallet/src/screens/hop/hop_page.dart';
+import 'package:cake_wallet/view_model/hop/hop_view_model.dart';
 import 'package:cake_wallet/src/screens/transaction_details/transaction_details_page.dart';
 import 'package:cake_wallet/src/screens/unspent_coins/unspent_coins_details_page.dart';
 import 'package:cake_wallet/src/screens/ur/animated_ur_page.dart';
@@ -636,6 +638,11 @@ Route<dynamic> createRoute(RouteSettings settings) {
     case Routes.otherSettingsPage:
       return handleRouteWithPlatformAwareness(
         (context) => getIt.get<OtherSettingsPage>(),
+      );
+
+    case Routes.hopPage:
+      return handleRouteWithPlatformAwareness(
+        (context) => HopPage(getIt.get<HopViewModel>()),
       );
 
     case Routes.newNode:

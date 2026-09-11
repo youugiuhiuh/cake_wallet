@@ -10,6 +10,7 @@ import 'package:cake_wallet/core/node_switching_service.dart';
 import 'package:cake_wallet/core/reset_service.dart';
 import 'package:cake_wallet/core/secure_storage.dart';
 import 'package:cake_wallet/core/trade_monitor.dart';
+import 'package:cake_wallet/core/hop/hop_engine.dart';
 import 'package:cake_wallet/di.dart';
 import 'package:cake_wallet/entities/contact.dart';
 import 'package:cake_wallet/entities/default_settings_migration.dart';
@@ -196,6 +197,14 @@ Future<void> runAppWithZone({Key? topLevelKey}) async {
     }
 
     isAppRunning = true;
+
+    // Kick off the chain-hop scheduler so scheduled hops advance while the app
+    // is in the foreground. The background entry point ticks it separately.
+    try {
+      getIt.get<HopEngine>().start();
+    } catch (e) {
+      printV("Failed to start hop engine: $e");
+    }
   }, (error, stackTrace) async {
     if (!isAppRunning) {
       runApp(

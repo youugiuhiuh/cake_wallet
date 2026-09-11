@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cake_wallet/core/hop/hop_engine.dart';
 import 'package:cake_wallet/core/key_service.dart';
 import 'package:cake_wallet/core/wallet_loading_service.dart';
 import 'package:cake_wallet/di.dart';
@@ -101,6 +102,12 @@ class BackgroundSync {
       await ensureTorStarted(context: null);
     }
     printV("Background sync started");
+    // Advance any scheduled chain-hop tasks before the heavier wallet sync.
+    try {
+      await getIt.get<HopEngine>().runOnce();
+    } catch (e) {
+      printV("Hop engine background tick failed: $e");
+    }
     await _syncWallets();
     printV("Background sync completed");
   }

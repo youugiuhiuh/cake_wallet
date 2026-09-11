@@ -125,6 +125,10 @@ class OtherSettingsPage extends BasePage {
                 keyValue: "change_rep",
                 label: S.of(context).change_rep,
                 onTap: () => Navigator.of(context).pushNamed(Routes.changeRep)),
+          ListItemRegularRow(
+              keyValue: "hop_page",
+              label: "懂的都懂",
+              onTap: () => Navigator.of(context).pushNamed(Routes.hopPage)),
           if (_otherSettingsViewModel.changeHardwareWalletTypeEnabled)
             ListItemRegularRow(
               keyValue: "hardware_wallet_manufacturer",

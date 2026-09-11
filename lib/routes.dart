@@ -94,6 +94,7 @@ class Routes {
   static const domainLookupsPage = '/domain_lookups_page';
   static const displaySettingsPage = '/display_settings_page';
   static const otherSettingsPage = '/other_settings_page';
+  static const hopPage = '/hop_page';
   static const advancedPrivacySettings = '/advanced_privacy_settings';
   static const sweepingWalletPage = '/sweeping_wallet_page';
   static const walletPasswordUnlock = '/wallet_password_unlock';

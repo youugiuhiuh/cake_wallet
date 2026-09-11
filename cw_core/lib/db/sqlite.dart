@@ -256,6 +256,75 @@ CREATE TABLE BalanceCardStyleSettings (
     await _createTronTokenTable(db);
     await _createImportedNFTTable(db);
   });
+
+  // Local additions are created idempotently on every start, so they never
+  // touch the schema version and never conflict with upstream migrations.
+  await _ensureLocalTables(db!);
+}
+
+Future<void> _ensureLocalTables(Database db) async {
+  await _createHopTaskTable(db);
+  await _createHopStepTable(db);
+  await _addColumnIfNotExists(db,
+      table: 'HopStep', column: 'source_wallet_name', definition: 'TEXT');
+  await _addColumnIfNotExists(db,
+      table: 'HopStep', column: 'settled_at', definition: 'INTEGER');
+}
+
+Future<void> _createHopTaskTable(Database db) async {
+  await db.execute('''
+CREATE TABLE IF NOT EXISTS HopTask (
+  id TEXT NOT NULL PRIMARY KEY,
+  wallet_name TEXT NOT NULL,
+  wallet_type INTEGER NOT NULL,
+  start_currency TEXT NOT NULL,
+  destination_address TEXT NOT NULL,
+  total_amount TEXT NOT NULL,
+  start_at INTEGER NOT NULL,
+  end_at INTEGER NOT NULL,
+  hop_count INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER,
+  error_message TEXT
+);
+''');
+  await db.execute('''
+CREATE INDEX IF NOT EXISTS idx_hop_task_status
+ON HopTask(status);
+''');
+}
+
+Future<void> _createHopStepTable(Database db) async {
+  await db.execute('''
+CREATE TABLE IF NOT EXISTS HopStep (
+  id TEXT NOT NULL PRIMARY KEY,
+  task_id TEXT NOT NULL,
+  step_index INTEGER NOT NULL,
+  source_currency TEXT NOT NULL,
+  target_currency TEXT NOT NULL,
+  amount TEXT NOT NULL,
+  target_address TEXT NOT NULL,
+  delay_seconds INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  tx_hash TEXT,
+  transfer_kind TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  executed_at INTEGER,
+  error_message TEXT,
+  source_wallet_name TEXT,
+  settled_at INTEGER,
+  FOREIGN KEY (task_id) REFERENCES HopTask(id) ON DELETE CASCADE
+);
+''');
+  await db.execute('''
+CREATE INDEX IF NOT EXISTS idx_hop_step_task
+ON HopStep(task_id, step_index);
+''');
+  await db.execute('''
+CREATE INDEX IF NOT EXISTS idx_hop_step_status
+ON HopStep(status);
+''');
 }
 
 Future<void> _createTradeTable(Database db) async {
