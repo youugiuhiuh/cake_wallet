@@ -1,0 +1,339 @@
+name: Sync upstream
+
+# Keeps this fork's feature branch up to date with cake-tech/cake_wallet.
+#
+# All of our edits to upstream files are additive (see fork/README.md), so a
+# plain merge of upstream normally lands cleanly — verified against a 56-commit
+# jump with zero conflicts. When a merge does conflict, the job aborts it, opens
+# (or updates) an issue naming the conflicting files, and fails loudly rather
+# than pushing a broken tree.
+#
+# Two jobs:
+#   mirror  — fast-forwards the `dev` branch on this fork to upstream's dev,
+#             so `git diff dev` always shows exactly our local changes.
+#   sync    — merges upstream/dev into the feature branch, verifies our wiring
+#             survived, refreshes fork/patches, and pushes.
+
+on:
+  schedule:
+    # 03:17 UTC daily — off the hour to avoid the cron stampede.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: 'Upstream branch/ref to merge in'
+        required: false
+        default: 'dev'
+      feature_branch:
+        description: 'Local branch to keep in sync'
+        required: false
+        default: 'local/hop'
+      dry_run:
+        description: 'Only report what would happen'
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+env:
+  UPSTREAM_REPO: cake-tech/cake_wallet
+  UPSTREAM_REF: ${{ github.event.inputs.upstream_ref || 'dev' }}
+  FEATURE_BRANCH: ${{ github.event.inputs.feature_branch || 'local/hop' }}
+  DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Mirror upstream/dev onto our `dev` branch. Kept as a pristine upstream
+  # reference so `git diff dev` == our local delta. Best-effort: a divergence
+  # here never blocks the feature-branch sync.
+  # ---------------------------------------------------------------------------
+  mirror:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout dev
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name  "cake-wallet fork bot"
+          git config user.email "fork-bot@users.noreply.github.com"
+
+      - name: Fast-forward dev to upstream
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git remote add upstream "https://github.com/${UPSTREAM_REPO}.git" 2>/dev/null \
+            || git remote set-url upstream "https://github.com/${UPSTREAM_REPO}.git"
+          git fetch --no-tags upstream "${UPSTREAM_REF}"
+
+          if git merge-base --is-ancestor "upstream/${UPSTREAM_REF}" HEAD; then
+            echo "dev already up to date with upstream/${UPSTREAM_REF}."
+            exit 0
+          fi
+
+          # dev should only ever move forward. If it cannot fast-forward, the
+          # mirror branch has local commits and must not be clobbered.
+          if git merge-base --is-ancestor HEAD "upstream/${UPSTREAM_REF}"; then
+            git merge --ff-only "upstream/${UPSTREAM_REF}"
+            if [[ "${DRY_RUN}" == "true" ]]; then
+              echo "dry_run=true — would push dev to $(git rev-parse --short HEAD)"
+            else
+              git push origin "HEAD:dev"
+            fi
+          else
+            echo "::warning::fork dev has diverged from upstream; skipping mirror."
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Merge upstream into the feature branch.
+  # ---------------------------------------------------------------------------
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: mirror
+    if: always()
+
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.FEATURE_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure git
+        run: |
+          git config user.name  "cake-wallet fork bot"
+          git config user.email "fork-bot@users.noreply.github.com"
+
+      - name: Add and fetch upstream
+        run: |
+          git remote add upstream "https://github.com/${UPSTREAM_REPO}.git" 2>/dev/null \
+            || git remote set-url upstream "https://github.com/${UPSTREAM_REPO}.git"
+          git fetch --no-tags upstream "${UPSTREAM_REF}"
+
+      - name: Report divergence
+        id: divergence
+        run: |
+          set -euo pipefail
+          upstream_sha="$(git rev-parse --short "upstream/${UPSTREAM_REF}")"
+          behind="$(git rev-list --count "HEAD..upstream/${UPSTREAM_REF}")"
+          ahead="$(git rev-list --count "upstream/${UPSTREAM_REF}..HEAD")"
+
+          echo "upstream_sha=${upstream_sha}" >> "$GITHUB_OUTPUT"
+          echo "behind=${behind}"             >> "$GITHUB_OUTPUT"
+          echo "ahead=${ahead}"               >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Upstream sync — \`${FEATURE_BRANCH}\`"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| upstream | \`${UPSTREAM_REPO}/${UPSTREAM_REF}\` @ \`${upstream_sha}\` |"
+            echo "| commits behind | ${behind} |"
+            echo "| our commits ahead | ${ahead} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "behind=${behind} ahead=${ahead} upstream=${upstream_sha}"
+
+      - name: Merge upstream
+        id: merge
+        if: steps.divergence.outputs.behind != '0'
+        run: |
+          set -euo pipefail
+
+          if git merge-base --is-ancestor "upstream/${UPSTREAM_REF}" HEAD; then
+            echo "Already contains upstream ${UPSTREAM_REF}. Nothing to merge."
+            echo "merged=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! git merge --no-ff --no-edit "upstream/${UPSTREAM_REF}"; then
+            echo "merged=conflict" >> "$GITHUB_OUTPUT"
+            {
+              echo 'conflicts<<EOF'
+              git diff --name-only --diff-filter=U
+              echo 'EOF'
+            } >> "$GITHUB_OUTPUT"
+            git merge --abort
+            exit 0
+          fi
+
+          echo "merged=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify our wiring survived the merge
+        if: steps.merge.outputs.merged == 'true'
+        run: |
+          set -euo pipefail
+
+          fail=0
+          check() {
+            if ! grep -q "$2" "$1"; then
+              echo "::error file=$1::expected marker '$2' missing after merge"
+              fail=1
+            fi
+          }
+
+          # Guard rails: make sure the sync did not silently drop our feature.
+          check lib/routes.dart            "hopPage"
+          check lib/router.dart            "Routes.hopPage"
+          check lib/di.dart                "HopEngine"
+          check lib/main.dart              "HopEngine"
+          check lib/core/background_sync.dart "HopEngine"
+          check lib/src/screens/settings/other_settings_page.dart "hop_page"
+          check cw_core/lib/db/sqlite.dart "_ensureLocalTables"
+
+          for f in \
+            lib/core/hop/hop_engine.dart \
+            lib/core/hop/hop_planner.dart \
+            lib/core/hop/hop_executor_impl.dart \
+            lib/core/hop/hop_exchange_service.dart \
+            lib/entities/hop_task.dart \
+            lib/entities/hop_step.dart \
+            lib/view_model/hop/hop_view_model.dart \
+            lib/src/screens/hop/hop_page.dart
+          do
+            if [[ ! -f "$f" ]]; then
+              echo "::error::missing local file $f after merge"
+              fail=1
+            fi
+          done
+
+          if [[ "$fail" != "0" ]]; then
+            echo "::error::post-merge verification failed — inspect before pushing"
+            exit 1
+          fi
+
+          echo "All local markers present after merge."
+
+      - name: Refresh upstream-edits patch
+        if: steps.merge.outputs.merged == 'true'
+        run: |
+          set -euo pipefail
+
+          # Keep fork/patches in lock-step with the real diff, so a fresh
+          # checkout can always be rebuilt with `git apply`.
+          git diff "upstream/${UPSTREAM_REF}" HEAD -- \
+            .gitignore \
+            cw_core/lib/db/sqlite.dart \
+            lib/core/background_sync.dart \
+            lib/di.dart \
+            lib/main.dart \
+            lib/router.dart \
+            lib/routes.dart \
+            lib/src/screens/settings/other_settings_page.dart \
+            > fork/patches/0001-hop-upstream-edits.patch
+
+          git add fork/patches/0001-hop-upstream-edits.patch
+          git commit -m "chore(fork): refresh upstream-edits patch"
+
+      - name: Push
+        if: steps.merge.outputs.merged == 'true' && env.DRY_RUN != 'true'
+        run: |
+          set -euo pipefail
+          git push origin "HEAD:${FEATURE_BRANCH}"
+
+      - name: Push skipped (dry run)
+        if: steps.merge.outputs.merged == 'true' && env.DRY_RUN == 'true'
+        run: echo "dry_run=true — merge + patch refresh succeeded but were not pushed."
+
+      - name: Open or update conflict issue
+        if: steps.merge.outputs.merged == 'conflict'
+        uses: actions/github-script@v7
+        env:
+          CONFLICT_FILES: ${{ steps.merge.outputs.conflicts }}
+        with:
+          script: |
+            const files = (process.env.CONFLICT_FILES || '')
+              .split('\n').map(s => s.trim()).filter(Boolean);
+            const branch = process.env.FEATURE_BRANCH;
+            const ref = process.env.UPSTREAM_REF;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const title = `Upstream sync conflict on ${branch}`;
+
+            const body = [
+              `Merging \`${ref}\` into \`${branch}\` hit conflicts.`,
+              '',
+              'Conflicting files:',
+              ...files.map(f => `- \`${f}\``),
+              '',
+              'Resolve locally, then push. See `fork/README.md` for the cheat-sheet:',
+              'all our upstream edits are additive, so the fix is almost always "keep both blocks".',
+              '',
+              `Workflow run: ${runUrl}`,
+            ].join('\n');
+
+            const label = 'upstream-sync';
+
+            try {
+              await github.rest.issues.getLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: label,
+              });
+            } catch (e) {
+              if (e.status === 404) {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label,
+                  color: 'd73a4a',
+                  description: 'Upstream sync needs manual conflict resolution',
+                });
+              } else {
+                throw e;
+              }
+            }
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: label,
+            });
+
+            const already = existing.data.find(i => i.title === title);
+
+            if (already) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: already.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: [label],
+              });
+            }
+
+            core.setFailed(`Upstream merge conflicted in ${files.length} file(s)`);
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo
+            echo "| result | value |"
+            echo "|---|---|"
+            echo "| behind before | ${{ steps.divergence.outputs.behind }} |"
+            echo "| merge | ${{ steps.merge.outputs.merged || 'skipped' }} |"
+            echo "| dry run | ${DRY_RUN} |"
+          } >> "$GITHUB_STEP_SUMMARY"
