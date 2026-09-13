@@ -115,7 +115,7 @@ index c2e270575..cd75e7d67 100644
      printV("Background sync completed");
    }
 diff --git a/lib/di.dart b/lib/di.dart
-index 6f6dda7e4..a1d26ee0f 100644
+index b12d15572..7a120dd8e 100644
 --- a/lib/di.dart
 +++ b/lib/di.dart
 @@ -23,6 +23,10 @@ import 'package:cake_wallet/cake_pay/src/services/cake_pay_service.dart';
@@ -129,7 +129,7 @@ index 6f6dda7e4..a1d26ee0f 100644
  import 'package:cake_wallet/core/new_wallet_arguments.dart';
  import 'package:cake_wallet/core/new_wallet_type_arguments.dart';
  import 'package:cake_wallet/core/node_switching_service.dart';
-@@ -1073,6 +1077,26 @@ Future<void> setup({
+@@ -1080,6 +1084,26 @@ Future<void> setup({
    getIt.registerFactory(() => OtherSettingsViewModel(
        getIt.get<SettingsStore>(), getIt.get<AppStore>().wallet!, getIt.get<SendViewModel>()));
  
@@ -184,10 +184,10 @@ index 53268a304..797f94773 100644
      if (!isAppRunning) {
        runApp(
 diff --git a/lib/router.dart b/lib/router.dart
-index 3760d1e13..77b15eb13 100644
+index f265ff29c..0e7daa896 100644
 --- a/lib/router.dart
 +++ b/lib/router.dart
-@@ -129,6 +129,8 @@ import 'package:cake_wallet/src/screens/support_chat/support_chat_page.dart';
+@@ -130,6 +130,8 @@ import 'package:cake_wallet/src/screens/support_chat/support_chat_page.dart';
  import 'package:cake_wallet/src/screens/support_other_links/support_other_links_page.dart';
  import 'package:cake_wallet/src/screens/trade_details/trade_details_page.dart';
  import 'package:cake_wallet/src/screens/transaction_details/rbf_details_page.dart';
@@ -196,7 +196,7 @@ index 3760d1e13..77b15eb13 100644
  import 'package:cake_wallet/src/screens/transaction_details/transaction_details_page.dart';
  import 'package:cake_wallet/src/screens/unspent_coins/unspent_coins_details_page.dart';
  import 'package:cake_wallet/src/screens/ur/animated_ur_page.dart';
-@@ -641,6 +643,11 @@ Route<dynamic> createRoute(RouteSettings settings) {
+@@ -642,6 +644,11 @@ Route<dynamic> createRoute(RouteSettings settings) {
          (context) => getIt.get<OtherSettingsPage>(),
        );
  
@@ -209,10 +209,10 @@ index 3760d1e13..77b15eb13 100644
        final args = settings.arguments as Map<String, dynamic>?;
        final page = getIt.get<NodeCreateOrEditPage>(
 diff --git a/lib/routes.dart b/lib/routes.dart
-index 9417a3e59..9b7946e00 100644
+index 96283c9b0..57c8d1137 100644
 --- a/lib/routes.dart
 +++ b/lib/routes.dart
-@@ -94,6 +94,7 @@ class Routes {
+@@ -95,6 +95,7 @@ class Routes {
    static const domainLookupsPage = '/domain_lookups_page';
    static const displaySettingsPage = '/display_settings_page';
    static const otherSettingsPage = '/other_settings_page';
