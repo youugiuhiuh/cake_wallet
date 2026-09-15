@@ -115,12 +115,12 @@ index c2e270575..cd75e7d67 100644
      printV("Background sync completed");
    }
 diff --git a/lib/di.dart b/lib/di.dart
-index b12d15572..7a120dd8e 100644
+index 3f6132421..843a13947 100644
 --- a/lib/di.dart
 +++ b/lib/di.dart
-@@ -23,6 +23,10 @@ import 'package:cake_wallet/cake_pay/src/services/cake_pay_service.dart';
- import 'package:cake_wallet/core/auth_service.dart';
+@@ -24,6 +24,10 @@ import 'package:cake_wallet/core/auth_service.dart';
  import 'package:cake_wallet/core/backup_service_v3.dart';
+ import 'package:cake_wallet/core/csv_export_service.dart';
  import 'package:cake_wallet/core/key_service.dart';
 +import 'package:cake_wallet/core/hop/hop_engine.dart';
 +import 'package:cake_wallet/core/hop/hop_executor_impl.dart';
@@ -129,7 +129,7 @@ index b12d15572..7a120dd8e 100644
  import 'package:cake_wallet/core/new_wallet_arguments.dart';
  import 'package:cake_wallet/core/new_wallet_type_arguments.dart';
  import 'package:cake_wallet/core/node_switching_service.dart';
-@@ -1080,6 +1084,26 @@ Future<void> setup({
+@@ -1081,6 +1085,26 @@ Future<void> setup({
    getIt.registerFactory(() => OtherSettingsViewModel(
        getIt.get<SettingsStore>(), getIt.get<AppStore>().wallet!, getIt.get<SendViewModel>()));
  
