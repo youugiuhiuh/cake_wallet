@@ -10,10 +10,10 @@ index 2b437f06e..1ff5961cf 100644
 +# Local tooling artifacts
 +.codegraph/
 diff --git a/cw_core/lib/db/sqlite.dart b/cw_core/lib/db/sqlite.dart
-index 1c8ade037..490b9871d 100644
+index 07297449b..2b5c21941 100644
 --- a/cw_core/lib/db/sqlite.dart
 +++ b/cw_core/lib/db/sqlite.dart
-@@ -256,6 +256,75 @@ CREATE TABLE BalanceCardStyleSettings (
+@@ -265,6 +265,75 @@ CREATE TABLE BalanceCardStyleSettings (
      await _createTronTokenTable(db);
      await _createImportedNFTTable(db);
    });
@@ -115,7 +115,7 @@ index c2e270575..cd75e7d67 100644
      printV("Background sync completed");
    }
 diff --git a/lib/di.dart b/lib/di.dart
-index 3f6132421..843a13947 100644
+index 160709171..bd192ce20 100644
 --- a/lib/di.dart
 +++ b/lib/di.dart
 @@ -24,6 +24,10 @@ import 'package:cake_wallet/core/auth_service.dart';
@@ -129,7 +129,7 @@ index 3f6132421..843a13947 100644
  import 'package:cake_wallet/core/new_wallet_arguments.dart';
  import 'package:cake_wallet/core/new_wallet_type_arguments.dart';
  import 'package:cake_wallet/core/node_switching_service.dart';
-@@ -1081,6 +1085,26 @@ Future<void> setup({
+@@ -1082,6 +1086,26 @@ Future<void> setup({
    getIt.registerFactory(() => OtherSettingsViewModel(
        getIt.get<SettingsStore>(), getIt.get<AppStore>().wallet!, getIt.get<SendViewModel>()));
  
@@ -184,10 +184,10 @@ index 53268a304..797f94773 100644
      if (!isAppRunning) {
        runApp(
 diff --git a/lib/router.dart b/lib/router.dart
-index f265ff29c..0e7daa896 100644
+index b30d37824..bdc584ee9 100644
 --- a/lib/router.dart
 +++ b/lib/router.dart
-@@ -130,6 +130,8 @@ import 'package:cake_wallet/src/screens/support_chat/support_chat_page.dart';
+@@ -131,6 +131,8 @@ import 'package:cake_wallet/src/screens/support_chat/support_chat_page.dart';
  import 'package:cake_wallet/src/screens/support_other_links/support_other_links_page.dart';
  import 'package:cake_wallet/src/screens/trade_details/trade_details_page.dart';
  import 'package:cake_wallet/src/screens/transaction_details/rbf_details_page.dart';
@@ -196,7 +196,7 @@ index f265ff29c..0e7daa896 100644
  import 'package:cake_wallet/src/screens/transaction_details/transaction_details_page.dart';
  import 'package:cake_wallet/src/screens/unspent_coins/unspent_coins_details_page.dart';
  import 'package:cake_wallet/src/screens/ur/animated_ur_page.dart';
-@@ -642,6 +644,11 @@ Route<dynamic> createRoute(RouteSettings settings) {
+@@ -643,6 +645,11 @@ Route<dynamic> createRoute(RouteSettings settings) {
          (context) => getIt.get<OtherSettingsPage>(),
        );
  
@@ -209,10 +209,10 @@ index f265ff29c..0e7daa896 100644
        final args = settings.arguments as Map<String, dynamic>?;
        final page = getIt.get<NodeCreateOrEditPage>(
 diff --git a/lib/routes.dart b/lib/routes.dart
-index 96283c9b0..57c8d1137 100644
+index 536d80913..887652575 100644
 --- a/lib/routes.dart
 +++ b/lib/routes.dart
-@@ -95,6 +95,7 @@ class Routes {
+@@ -96,6 +96,7 @@ class Routes {
    static const domainLookupsPage = '/domain_lookups_page';
    static const displaySettingsPage = '/display_settings_page';
    static const otherSettingsPage = '/other_settings_page';
